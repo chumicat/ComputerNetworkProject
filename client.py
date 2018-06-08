@@ -10,23 +10,26 @@ client_socket.connect(('127.0.0.1', 8002))
 
 connection = client_socket.makefile('wb')
 try:
-    #打开摄像头
+    # open camera 
     cap = cv2.VideoCapture(0)
     while (1):
-        #读取图片
+        # read photo
         ret, frame = cap.read()
         # cv2.imshow("capture", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        #转换为jpg格式
+            
+        # convert to jpg photo
         img_str = cv2.imencode('.jpg', frame)[1].tostring()
-        #获得图片长度
+        
+        # fetch length of photo
         s = struct.pack('<L', len(img_str))
         # print(s)
-        #将图片长度传输到服务端
+        
+        # transform length to server
         connection.write(s)
         connection.flush()
-        # 传输图片流
+        # transform photo stream to server
         connection.write(img_str)
         connection.flush()
 
