@@ -9,7 +9,7 @@ from threading import Condition
 from http import server
 
 server_socket = socket.socket()
-# 绑定socket通信端口
+# binding socket ip:port
 server_socket.bind(('127.0.0.1', 8002))
 server_socket.listen(0)
 
@@ -66,21 +66,21 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.end_headers()
             try:
                 while True:
-                    #获得图片长度
+                    # fetch length of photo
                     image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
                     print(image_len)
                     if not image_len:
                         break
 
                     image_stream = io.BytesIO()
-                    #读取图片
+                    # read photo
                     image_stream.write(connection.read(image_len))
 
                     image_stream.seek(0)
                     image = Image.open(image_stream)
                     cv2img = numpy.array(image, dtype=numpy.uint8)
                     imgbuffer = image_stream.getvalue()
-                    #写入http响应
+                    # write to http response
                     self.wfile.write(b'--FRAME\r\n')
                     self.send_header('Content-Type', 'image/jpeg')
                     self.send_header('Content-Length', len(imgbuffer))
