@@ -27,20 +27,18 @@ def writeHTML(ipaddr):
     f.write('</body>')
 
 a = 0
-file = ""
 while True:
     s.listen(0)
     tcpClient, address = s.accept()
     message = tcpClient.recv(1000)
-    # print message
     if len(message) == 0:
         error404(tcpClient)
     x = message.split()
     if len(x) > 1:
         if x[len(x)-1].find('statement') >= 0:
-            print x[len(x)-1].split('=')[1] #data is here
+            print(x[len(x)-1].split('=')[1]) #data is here
     else:
-        print message
+        print(message)
     try:
         f = open('test.html', 'r')
         data = f.read()
@@ -51,5 +49,5 @@ while True:
         tcpClient.send('\r\n') #end of header
         tcpClient.send(data)
     except:
-        print 'Did not find the file'
-        error404(tcpClient)
+        print('Did not find the file')
+        # error404(tcpClient)
