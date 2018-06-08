@@ -37,7 +37,6 @@ while True:
         error404(tcpClient)
     x = message.split()
     if len(x) > 1:
-        file = x[1].strip('/')
         if x[len(x)-1].find('statement') >= 0:
             print x[len(x)-1].split('=')[1] #data is here
     else:
