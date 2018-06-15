@@ -9,36 +9,56 @@ import logging
 import socketserver
 from threading import Condition
 from http import server
-
-server_socket = socket.socket()
-server_socket.bind(('127.0.0.1', 8002))
-server_socket.listen(3)
-
-connection = server_socket.accept()[0].makefile('r+b')
+from threading import Thread 
+from SocketServer import ThreadingMixIn
 
 #main process in this function
 def imgprocess(img):
     return img
 
-try:
-    while (1):
-        image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        print(image_len)
-        if not image_len:
-            break
-        img = connection.read(image_len)
+class ClientThread(Thread):
+    def __init__(self, conn, ip, port):
+        Thread.__init__(self)
+        self.conn = conn
+        self.ip = ip
+        self.port = port
 
-        img_str = imgprocess(img)
-        s = struct.pack('<L', len(img_str))
-        # transform length to server
-        connection.write(s)
-        connection.flush()
-        # transform photo stream to server
-        connection.write(img_str)
-        connection.flush()
+    def run(self):
+        self.connection = conn.makefile('r+b')
+        try:
+            while True:
+                self.image_len = struct.unpack('<L', self.connection.read(struct.calcsize('<L')))[0]
+                print(self.image_len)
+                if not self.image_len:
+                    break
+                self.img = self.connection.read(self.image_len)
 
-except Exception as e:
-    print(e)
-finally:
-    connection.close()
-    server_socket.close()
+                self.img_str = imgprocess(self.img)
+                self.s = struct.pack('<L', len(self.img_str))
+                # transform length to server
+                self.connection.write(self.s)
+                self.connection.flush()
+                # transform photo stream to server
+                self.connection.write(self.img_str)
+                self.connection.flush()
+        except Exception as e:
+            print(e)
+        finally:
+            self.connection.close()
+
+server_socket = socket.socket()
+server_socket.bind(('127.0.0.1', 8002))
+
+client_threads = []
+
+while True:
+    server_socket.listen(3)
+    (conn, (ip, port)) = server_socket.accept()
+    newthread = ClientThread(conn, ip, port)
+    newthread.start()
+    client_threads.append(newthread)
+
+
+
+
+
