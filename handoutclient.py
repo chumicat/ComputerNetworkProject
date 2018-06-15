@@ -1,5 +1,6 @@
 import socket
 import struct
+import PIL
 from PIL import Image
 import numpy
 import io
@@ -24,7 +25,7 @@ PAGE = """\
 </head>
 <body>
 <h1>PiCamera MJPEG Streaming Demo</h1>
-<img src="stream.mjpg" width="640" height="480" />
+<img src="stream.mjpg" width="1280" height="480" />
 </body>
 </html>
 """
@@ -109,13 +110,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(imgbuffer)
                     self.wfile.write(b'\r\n')
-
-
-            except Exception as e:
-                logging.warning(
-                    'errror streaming client %s: %s',
-                    self.client_address, str(e))
-
+            except:
+                exit(1)
         else:
             self.send_error(404)
             self.end_headers()
