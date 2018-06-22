@@ -18,7 +18,6 @@ clientimage = []
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
-    print 'haHa'
     if len(cleimg) < thrid + 1:
         cleimg.append(img)
     else:
@@ -26,7 +25,6 @@ def imgprocess(img, thrid, cleimg):
     if len(cleimg) == 1:
         return img, cleimg
     elif len(cleimg) == 2:
-        print 'HeHe'
         if thrid == 0:
             return cleimg[1], cleimg
         else:
@@ -85,7 +83,6 @@ class ClientThread(Thread):
                 global clientimage
                 image, clientimage = imgprocess(numpy.array(image), self.id, clientimage)
                 img = cv2.imencode('.jpg', image)[1].tostring()
-                print len(image), len(image[0])
 
                 s = struct.pack('<L', len(img))
                 # transform length to server
