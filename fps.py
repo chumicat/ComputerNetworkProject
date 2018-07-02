@@ -16,7 +16,7 @@ def ffps():
     #print(int(fps_s_last))
     fps_t_last = fps_t_now # record data
     
-    return int(fps_s_last)
+    return fps_s_last
 
 def fps():
     # declare global variable
@@ -28,4 +28,4 @@ def fps():
     delta_s = delta_t.seconds + delta_t.microseconds/1E6 # delta in second
     fps_t_last = fps_t_now # record data
     
-    return int(1/delta_s)
+    return 1/delta_s
