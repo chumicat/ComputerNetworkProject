@@ -10,11 +10,10 @@ import logging
 import socketserver
 from threading import Condition
 from http import server
-from threading import Thread
+from threading import Thread 
 from SocketServer import ThreadingMixIn
 import cv2
 import random
-
 
 randomseed = int(random.random() * 5)
 
@@ -22,7 +21,6 @@ randomseed = int(random.random() * 5)
 clientimage = []
 framesize = (320, 240)
 white = [255, 255, 255]
-threshold = 4
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
@@ -76,7 +74,6 @@ class ClientThread(Thread):
             while True:
                 if not self.active:
                     break
-                
                 image_len = struct.unpack('<L', self.connection.read(struct.calcsize('<L')))[0]
                 print(image_len)
                 if not image_len:
