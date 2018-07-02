@@ -10,7 +10,7 @@ import logging
 import socketserver
 from threading import Condition
 from http import server
-from threading import Thread 
+from threading import Thread
 from SocketServer import ThreadingMixIn
 import cv2
 import random
