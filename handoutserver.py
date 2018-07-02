@@ -15,12 +15,14 @@ from SocketServer import ThreadingMixIn
 import cv2
 import random
 
+
 randomseed = int(random.random() * 5)
 
 # global variable
 clientimage = []
 framesize = (320, 240)
 white = [255, 255, 255]
+threshold = 4
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
@@ -74,6 +76,7 @@ class ClientThread(Thread):
             while True:
                 if not self.active:
                     break
+                
                 image_len = struct.unpack('<L', self.connection.read(struct.calcsize('<L')))[0]
                 print(image_len)
                 if not image_len:
