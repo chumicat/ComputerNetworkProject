@@ -14,7 +14,10 @@ from threading import Thread
 from SocketServer import ThreadingMixIn
 import cv2
 
+# global variable
 clientimage = []
+framesize = (320, 240)
+white = [255, 255, 255]
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
@@ -23,27 +26,27 @@ def imgprocess(img, thrid, cleimg):
     else:
         cleimg[thrid] = img
     if len(cleimg) == 1:
-        return img, cleimg
+        return mergeimg(cleimg[0], whiteimg(framesize)), cleimg
     elif len(cleimg) == 2:
         if thrid == 0:
-            return cleimg[1], cleimg
+            return mergeimg(cleimg[1], whiteimg(framesize)), cleimg
         else:
-            return cleimg[0], cleimg
+            return mergeimg(cleimg[0], whiteimg(framesize)), cleimg
     elif len(cleimg) == 3:
         if thrid == 0:
-            return numpy.concatenate((cleimg[1], cleimg[2]), axis = 1), cleimg
+            return mergeimg(cleimg[1], cleimg[2]), cleimg
         elif thrid == 1:
-            return numpy.concatenate((cleimg[0], cleimg[2]), axis = 1), cleimg
+            return mergeimg(cleimg[2], cleimg[0]), cleimg
         else:
-            return numpy.concatenate((cleimg[0], cleimg[1]), axis = 1), cleimg
+            return mergeimg(cleimg[0], cleimg[1]), cleimg
     else:
         return [], []
 
 def mergeimg(img1, img2):
-    image = img1
-    for row in img2:
-        image.append(img2)
-    return image
+    return numpy.concatenate((img1, img2), axis = 1)
+
+def whiteimg(size):
+    return [ [white for i in range(size[0])] for i in range(size[1])]
 
 def getid(x):
     for i in range(len(x)):
@@ -62,7 +65,7 @@ class ClientThread(Thread):
         self.id = -1
 
     def run(self):
-        self.connection = conn.makefile('r+b')
+        self.connection = conn.makefile('wrb')
         try:
             while True:
                 if not self.active:
@@ -79,7 +82,7 @@ class ClientThread(Thread):
 
                 image_stream.seek(0)
                 image = Image.open(image_stream)
-                image = image.resize((640, 480), PIL.Image.ANTIALIAS)
+                image = image.resize(framesize, PIL.Image.ANTIALIAS)
                 global clientimage
                 image, clientimage = imgprocess(numpy.array(image), self.id, clientimage)
                 img = cv2.imencode('.jpg', image)[1].tostring()
@@ -95,6 +98,7 @@ class ClientThread(Thread):
             print(e)
             self.connection.close()
             self.active = False
+            exit(1)
         finally:
             self.connection.close()
 
@@ -118,7 +122,4 @@ while True:
             newthread.start()
             newthread.id = thrid
             client_threads[thrid] = newthread
-
-
-
 

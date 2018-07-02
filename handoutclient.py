@@ -14,21 +14,26 @@ import cv2
 
 client_socket = socket.socket()
 client_socket.connect(('127.0.0.1', 8002))
+framesize = (320, 240)
+connection = client_socket.makefile('wrb')
 
-connection = client_socket.makefile('r+b')
+def writehtml(size):
+    x = size[0]
+    y = size[1]
+    img = '<img src="stream.mjpg" width="' + str(x * 4) + '" height="' + str(y * 2) \
+     + '" />'
+    return '''
+    <html>
+    <head>
+    <title>camera MJPEG streaming demo</title>
+    </head>
+    <body>
+    <h1>PiCamera MJPEG Streaming Demo</h1>''' + img + '''
+    </body>
+    </html>
+    '''
 
-
-PAGE = """\
-<html>
-<head>
-<title>camera MJPEG streaming demo</title>
-</head>
-<body>
-<h1>PiCamera MJPEG Streaming Demo</h1>
-<img src="stream.mjpg" width="1280" height="480" />
-</body>
-</html>
-"""
+PAGE = writehtml(framesize)
 
 
 class StreamingOutput(object):
@@ -78,6 +83,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     # convert to jpg photo
+                    size = (framesize[0] * 2, framesize[1] * 2)
+                    frame = cv2.resize(frame, framesize, interpolation = cv2.INTER_AREA)
                     img_str = cv2.imencode('.jpg', frame)[1].tostring()
                     # fetch length of photo
                     s = struct.pack('<L', len(img_str))
