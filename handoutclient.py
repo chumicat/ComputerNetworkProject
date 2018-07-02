@@ -1,7 +1,7 @@
 import socket
 import struct
 import PIL
-from PIL import Image
+from PIL import Image, ImageGrab
 import numpy
 import io
 import logging
@@ -11,11 +11,15 @@ from http import server
 import time
 import datetime
 import cv2
+from fps import fps, ffps
 
 client_socket = socket.socket()
 client_socket.connect(('127.0.0.1', 8002))
 framesize = (320, 240)
 connection = client_socket.makefile('wrb')
+filename = ''
+fromcamera = True
+filflag = ''
 
 def writehtml(size):
     x = size[0]
@@ -35,6 +39,26 @@ def writehtml(size):
 
 PAGE = writehtml(framesize)
 
+def cv2_filter(img, flag):
+    if flag == 'None':
+        return img
+    elif flag == 'Pencil':
+        dst1_gray, dst1_color = cv2.pencilSketch(img, sigma_s = 50, sigma_r = 0.15, shade_factor = 0.04)
+        return dst1_color
+    elif flag == 'Style':
+        dst2 = cv2.stylization(img, sigma_s = 50, sigma_r = 0.15)
+        return dst2
+    elif flag == 'Detail':
+        dst3 = cv2.detailEnhance(img, sigma_s = 50, sigma_r = 0.15)
+        return dst3
+    elif flag == 'Edge':
+        dst4 = cv2.edgePreservingFilter(img, flags=1, sigma_s = 50, sigma_r = 0.15)
+        return dst4
+    elif flag == 'udinverse':
+        return img[::-1]
+    elif flag == 'lrinverse':
+        return cv2.flip(img, flipCode = 1)
+        # return LRinv(img)
 
 class StreamingOutput(object):
     def __init__(self):
@@ -74,18 +98,27 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.end_headers()
             try:
                 # open camera 
-                cap = cv2.VideoCapture(0)
+                if fromcamera:
+                    if len(filename) > 0:
+                        self.cap = cv2.VideoCapture(filename)
+                    else:
+                        self.cap = cv2.VideoCapture(0)
                 while True:
+                    print(ffps())
                     #client send image
                     # read photo
-                    ret, frame = cap.read()
+                    if fromcamera:
+                        ret, self.frame = self.cap.read()
+                        self.frame = cv2.resize(self.frame, framesize, interpolation = cv2.INTER_AREA)
+                    else:
+                        self.frame = ImageGrab.grab()
+                        self.frame = numpy.array(self.frame.resize(framesize, Image.ANTIALIAS))
                     # cv2.imshow("capture", frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     # convert to jpg photo
-                    size = (framesize[0] * 2, framesize[1] * 2)
-                    frame = cv2.resize(frame, framesize, interpolation = cv2.INTER_AREA)
-                    img_str = cv2.imencode('.jpg', frame)[1].tostring()
+                    self.frame = cv2_filter(self.frame, filflag)
+                    img_str = cv2.imencode('.jpg', self.frame)[1].tostring()
                     # fetch length of photo
                     s = struct.pack('<L', len(img_str))
                     # transform length to server
@@ -98,7 +131,6 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     #cleient get image
                     # fetch length of photo
                     image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-                    print(image_len)
                     if not image_len:
                         break
 
@@ -119,10 +151,44 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     self.wfile.write(b'\r\n')
             except:
                 exit(1)
-        else:
-            self.send_error(404)
+        elif self.path == '/favicon.ico':
+            self.send_response(301)
+            self.send_header('Location', '/index.html')
             self.end_headers()
+        else:
+            args = self.path.split('&')
+            self.setframe(args[0])
+            if len(args) > 1:
+                global filflag
+                filflag = args[1].split('=')[1]
+            else:
+                global filflag
+                filflag = 'None'
+            content = PAGE.encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', len(content))
+            self.end_headers()
+            self.wfile.write(content)
 
+    def setframe(self, path):
+        # /screenshot for screenshot
+        # / or /index.html for camera
+        # /... for readfile
+        if path == '/screen.shot':
+            global fromcamera
+            fromcamera = False
+        elif path != '/' and path != '/index.html':
+            global filename, fromcamera
+            filename = path.strip('/')
+            fromcamera = True
+        elif path == '/index.html':
+            global filename, fromcamera
+            fromcamera = True
+            filename = ""
+
+
+#end StreamingHandler
 
 class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
     allow_reuse_address = True

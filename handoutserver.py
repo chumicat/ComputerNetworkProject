@@ -13,6 +13,9 @@ from http import server
 from threading import Thread 
 from SocketServer import ThreadingMixIn
 import cv2
+import random
+
+randomseed = int(random.random() * 5)
 
 # global variable
 clientimage = []
@@ -21,6 +24,7 @@ white = [255, 255, 255]
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
+    # img = cv2_filter(img, randomseed)
     if len(cleimg) < thrid + 1:
         cleimg.append(img)
     else:
