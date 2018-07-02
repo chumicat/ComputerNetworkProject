@@ -6,25 +6,69 @@ import numpy
 import io
 import logging
 import socketserver
-from threading import Condition
+from threading import Condition, Thread
 from http import server
 import time
 import datetime
 import cv2
 from fps import fps, ffps
+from pynput.keyboard import Key, Listener
 
+logfile = open('client.log', 'a')
 client_socket = socket.socket()
 client_socket.connect(('127.0.0.1', 8002))
-framesize = (320, 240)
+stdsize = (320, 240)
+amprate = 1.0
+framesize = int(amprate * stdsize[0]), int(amprate * stdsize[1])
 connection = client_socket.makefile('wrb')
 filename = ''
 fromcamera = True
 filflag = ''
+frame = numpy.array([])
+black = [0, 0, 0]
+blackimg = numpy.array([ [black for i in range(framesize[0])] for i in range(framesize[1])])
+
+def on_press(key):
+    print('{0} pressed'.format(
+        key))
+    print('{0}'.format(key))
+    global amprate, framesize
+    if '{0}'.format(key) == "u's'":
+        print 'save'
+        img = Image.fromarray(frame)
+        img.save('temp.jpg')
+    elif '{0}'.format(key) == "u'+'":
+        
+        amprate += 0.05
+        framesize = int(amprate * stdsize[0]), int(amprate * stdsize[1])
+        print(framesize)
+    elif '{0}'.format(key) == "u'-'":
+        if amprate > 0.05:
+            amprate -= 0.05
+            framesize = int(amprate * stdsize[0]), int(amprate * stdsize[1])
+            print(framesize)
+
+def on_release(key):
+    print('{0} release'.format(
+        key))
+    if key == Key.esc:
+        # Stop listener
+        return False
+
+class KeyThread(Thread):
+    def __init__(self):
+        Thread.__init__(self)
+    def run(self):
+        # Collect events until released
+        with Listener(
+        on_press=on_press,
+        on_release=on_release) as listener:
+            listener.join()
 
 def writehtml(size):
     x = size[0]
     y = size[1]
-    img = '<img src="stream.mjpg" width="' + str(x * 4) + '" height="' + str(y * 2) \
+    img = '<img src="stream.mjpg" width="' + '1280' + '" height="' + '640' \
      + '" />'
     return '''
     <html>
@@ -78,6 +122,7 @@ class StreamingOutput(object):
 
 class StreamingHandler(server.BaseHTTPRequestHandler):
     def do_GET(self):
+        global filflag
         if self.path == '/':
             self.send_response(301)
             self.send_header('Location', '/index.html')
@@ -89,6 +134,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.send_header('Content-Length', len(content))
             self.end_headers()
             self.wfile.write(content)
+            logfile.write('visit index.html\n')
         elif self.path == '/stream.mjpg':
             self.send_response(200)
             self.send_header('Age', 0)
@@ -107,18 +153,22 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     print(ffps())
                     #client send image
                     # read photo
-                    if fromcamera:
-                        ret, self.frame = self.cap.read()
-                        self.frame = cv2.resize(self.frame, framesize, interpolation = cv2.INTER_AREA)
+                    global frame
+                    if isblack:
+                        
+                        frame = blackimg
+                    elif fromcamera:
+                        ret, frame = self.cap.read()
+                        frame = cv2.resize(frame, framesize, interpolation = cv2.INTER_AREA)
                     else:
-                        self.frame = ImageGrab.grab()
-                        self.frame = numpy.array(self.frame.resize(framesize, Image.ANTIALIAS))
+                        frame = ImageGrab.grab()
+                        frame = numpy.array(frame.resize(framesize, Image.ANTIALIAS))
                     # cv2.imshow("capture", frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     # convert to jpg photo
-                    self.frame = cv2_filter(self.frame, filflag)
-                    img_str = cv2.imencode('.jpg', self.frame)[1].tostring()
+                    frame = cv2_filter(frame, filflag)
+                    img_str = cv2.imencode('.jpg', frame)[1].tostring()
                     # fetch length of photo
                     s = struct.pack('<L', len(img_str))
                     # transform length to server
@@ -157,12 +207,13 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self.end_headers()
         else:
             args = self.path.split('&')
+            logfile.write('visit' + self.path + '\n')
             self.setframe(args[0])
+            
             if len(args) > 1:
-                global filflag
+                
                 filflag = args[1].split('=')[1]
             else:
-                global filflag
                 filflag = 'None'
             content = PAGE.encode('utf-8')
             self.send_response(200)
@@ -175,17 +226,22 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         # /screenshot for screenshot
         # / or /index.html for camera
         # /... for readfile
+        global filename, fromcamera, isblack
         if path == '/screen.shot':
-            global fromcamera
             fromcamera = False
+            isblack = False
+        elif path == '/black':
+            isblack = True
         elif path != '/' and path != '/index.html':
-            global filename, fromcamera
+            
             filename = path.strip('/')
             fromcamera = True
+            isblack = False
         elif path == '/index.html':
-            global filename, fromcamera
             fromcamera = True
             filename = ""
+            isblack = False
+
 
 
 #end StreamingHandler
@@ -200,6 +256,8 @@ output = StreamingOutput()
 try:
     address = ('127.0.0.1', 8000)
     server = StreamingServer(address, StreamingHandler)
+    keyctrl = KeyThread()
+    keyctrl.start()
     server.serve_forever()
 except Exception as e:
     print(e)
