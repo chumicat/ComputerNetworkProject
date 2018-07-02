@@ -6,12 +6,13 @@ import numpy
 import io
 import logging
 import socketserver
-from threading import Condition
+from threading import Condition, Thread
 from http import server
 import time
 import datetime
 import cv2
 from fps import fps, ffps
+from pynput.keyboard import Key, Listener
 
 client_socket = socket.socket()
 client_socket.connect(('127.0.0.1', 8002))
@@ -20,6 +21,37 @@ connection = client_socket.makefile('wrb')
 filename = ''
 fromcamera = True
 filflag = ''
+frame = numpy.array([])
+black = [0, 0, 0]
+blackimg = numpy.array([ [black for i in range(framesize[0])] for i in range(framesize[1])])
+
+'''
+def on_press(key):
+    print('{0} pressed'.format(
+        key))
+    print('{0}'.format(key))
+    if '{0}'.format(key) == "u's'":
+        print 'save'
+        img = Image.fromarray(frame)
+        img.save('temp.jpg')
+
+def on_release(key):
+    print('{0} release'.format(
+        key))
+    if key == Key.esc:
+        # Stop listener
+        return False
+
+class KeyThread(Thread):
+    def __init__(self):
+        Thread.__init__(self)
+    def run(self):
+        # Collect events until released
+        with Listener(
+        on_press=on_press,
+        on_release=on_release) as listener:
+            listener.join()
+'''
 
 def writehtml(size):
     x = size[0]
@@ -107,18 +139,24 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
                     print(ffps())
                     #client send image
                     # read photo
-                    if fromcamera:
-                        ret, self.frame = self.cap.read()
-                        self.frame = cv2.resize(self.frame, framesize, interpolation = cv2.INTER_AREA)
+                    if isblack:
+                        global frame
+                        frame = blackimg
+                    elif fromcamera:
+                        global frame
+                        ret, frame = self.cap.read()
+                        frame = cv2.resize(frame, framesize, interpolation = cv2.INTER_AREA)
                     else:
-                        self.frame = ImageGrab.grab()
-                        self.frame = numpy.array(self.frame.resize(framesize, Image.ANTIALIAS))
+                        global frame
+                        frame = ImageGrab.grab()
+                        frame = numpy.array(frame.resize(framesize, Image.ANTIALIAS))
                     # cv2.imshow("capture", frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                     # convert to jpg photo
-                    self.frame = cv2_filter(self.frame, filflag)
-                    img_str = cv2.imencode('.jpg', self.frame)[1].tostring()
+                    global frame
+                    frame = cv2_filter(frame, filflag)
+                    img_str = cv2.imencode('.jpg', frame)[1].tostring()
                     # fetch length of photo
                     s = struct.pack('<L', len(img_str))
                     # transform length to server
@@ -176,16 +214,23 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         # / or /index.html for camera
         # /... for readfile
         if path == '/screen.shot':
-            global fromcamera
+            global fromcamera, isblack
             fromcamera = False
+            isblack = False
+        elif path == '/black':
+            global isblack
+            isblack = True
         elif path != '/' and path != '/index.html':
-            global filename, fromcamera
+            global filename, fromcamera, isblack
             filename = path.strip('/')
             fromcamera = True
+            isblack = False
         elif path == '/index.html':
-            global filename, fromcamera
+            global filename, fromcamera, isblack
             fromcamera = True
             filename = ""
+            isblack = False
+
 
 
 #end StreamingHandler
@@ -200,6 +245,8 @@ output = StreamingOutput()
 try:
     address = ('127.0.0.1', 8000)
     server = StreamingServer(address, StreamingHandler)
+    # keyctrl = KeyThread()
+    # keyctrl.start()
     server.serve_forever()
 except Exception as e:
     print(e)
