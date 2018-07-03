@@ -34,7 +34,7 @@ def on_press(key):
     print('{0}'.format(key))
     global amprate, framesize
     if '{0}'.format(key) == "u's'":
-        print 'save'
+        print('save')
         img = Image.fromarray(frame)
         img.save('temp.jpg')
     elif '{0}'.format(key) == "u'+'":
@@ -241,8 +241,6 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             fromcamera = True
             filename = ""
             isblack = False
-
-
 
 #end StreamingHandler
 

@@ -10,10 +10,11 @@ import logging
 import socketserver
 from threading import Condition
 from http import server
-from threading import Thread 
-from SocketServer import ThreadingMixIn
+from threading import Thread
+from socketServer import ThreadingMixIn
 import cv2
 import random
+
 
 randomseed = int(random.random() * 5)
 
@@ -21,6 +22,7 @@ randomseed = int(random.random() * 5)
 clientimage = []
 framesize = (320, 240)
 white = [255, 255, 255]
+threshold = 4
 
 #main process in this function
 def imgprocess(img, thrid, cleimg):
@@ -74,6 +76,7 @@ class ClientThread(Thread):
             while True:
                 if not self.active:
                     break
+
                 image_len = struct.unpack('<L', self.connection.read(struct.calcsize('<L')))[0]
                 print(image_len)
                 if not image_len:
@@ -86,7 +89,8 @@ class ClientThread(Thread):
 
                 image_stream.seek(0)
                 image = Image.open(image_stream)
-                image = image.resize(framesize, PIL.Image.ANTIALIAS)
+                global framesize
+                framesize = image.size
                 global clientimage
                 image, clientimage = imgprocess(numpy.array(image), self.id, clientimage)
                 img = cv2.imencode('.jpg', image)[1].tostring()
